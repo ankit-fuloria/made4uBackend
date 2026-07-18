@@ -29,8 +29,12 @@ const buildAuthResponse = (user) => ({
   },
 });
 
-const generateOtp = () =>
-  process.env.OTP_BYPASS === "true" ? "123456" : String(Math.floor(100000 + Math.random() * 900000));
+// Test accounts — these phone numbers always get a fixed OTP so they can be
+// tested without checking email. Every other number gets a real random OTP.
+const OTP_BYPASS_PHONES = ["8851943850", "9953766347", "7011335800"];
+
+const generateOtp = (phone) =>
+  OTP_BYPASS_PHONES.includes(String(phone)) ? "123456" : String(Math.floor(100000 + Math.random() * 900000));
 
 const maskEmail = (email) => {
   const [user, domain] = email.split("@");
@@ -58,7 +62,7 @@ exports.loginSendOtp = async (req, res) => {
       return res.status(403).json({ success: false, message: "Account is deactivated" });
     }
 
-    const otp = generateOtp();
+    const otp = generateOtp(user.phone);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await OTP.findOneAndDelete({ identifier: identifier.toLowerCase(), type: "login" });
@@ -132,7 +136,7 @@ exports.signupSendOtp = async (req, res) => {
       return res.status(409).json({ success: false, message: `${field} already registered` });
     }
 
-    const otp = generateOtp();
+    const otp = generateOtp(phone);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await OTP.findOneAndDelete({ identifier: emailId.toLowerCase(), type: "signup" });

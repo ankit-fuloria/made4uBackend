@@ -16,6 +16,7 @@ const adminRoutes = require("./src/routes/admin");
 const sellerRoutes = require("./src/routes/seller");
 const brandRoutes = require("./src/routes/brand");
 const settingsRoutes = require("./src/routes/settings");
+const couponRoutes = require("./src/routes/coupon");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,6 +41,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/seller", sellerRoutes);
 app.use("/api/brands", brandRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/coupons", couponRoutes);
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -54,5 +56,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`MadeForYou server running on port ${PORT}`);
+  console.log(`Heart Made Memo server running on port ${PORT}`);
 });

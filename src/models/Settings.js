@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 // Singleton document — there is only ever one Settings row.
 const settingsSchema = new mongoose.Schema(
   {
-    appName: { type: String, default: "MadeForYou" },
+    appName: { type: String, default: "Heart Made Memo" },
     currency: { type: String, default: "INR" },
     currencySymbol: { type: String, default: "₹" },
     taxRatePercent: { type: Number, default: 0 },

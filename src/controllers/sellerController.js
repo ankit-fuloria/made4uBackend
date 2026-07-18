@@ -156,7 +156,7 @@ exports.updateStoreProfile = async (req, res) => {
         bankName: req.body.bankName,
       };
     }
-    if (req.file) updates.storeLogo = `/uploads/${req.file.filename}`;
+    if (req.file) updates.storeLogo = req.file.publicUrl;
 
     const seller = await User.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true }).select("-password");
     res.json({ success: true, seller });
