@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const multer = require("multer");
-const path = require("path");
 const { protect, adminOnly, adminOrSeller } = require("../middleware/auth");
+const { gcsUpload } = require("../middleware/gcsUpload");
 const {
   getProducts,
   getProductById,
@@ -16,12 +16,7 @@ const {
   rejectProduct,
 } = require("../controllers/productController");
 
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (req, file, cb) =>
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}`),
-});
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 // Public
 router.get("/", getProducts);
@@ -37,8 +32,8 @@ router.patch("/:id/reject", protect, adminOnly, rejectProduct);
 router.get("/:id", getProductById);
 
 router.use(protect, adminOrSeller);
-router.post("/", upload.array("images", 5), createProduct);
-router.put("/:id", upload.array("images", 5), updateProduct);
+router.post("/", upload.array("images", 5), gcsUpload("products"), createProduct);
+router.put("/:id", upload.array("images", 5), gcsUpload("products"), updateProduct);
 router.delete("/:id", deleteProduct);
 
 module.exports = router;

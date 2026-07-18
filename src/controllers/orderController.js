@@ -4,6 +4,7 @@ const Product = require("../models/Product");
 const User = require("../models/User");
 const Transaction = require("../models/Transaction");
 const Settings = require("../models/Settings");
+const { validateCouponForUser, recordCouponUsage } = require("../utils/couponValidation");
 
 // Creates per-seller Sale + Commission transactions the moment an order
 // first becomes "Delivered". Guarded by callers so it only ever runs once
@@ -37,7 +38,7 @@ const recordEarningsOnDelivery = async (order) => {
 
 exports.createOrder = async (req, res) => {
   try {
-    const { shippingAddress, paymentMethod = "COD", orderNote } = req.body;
+    const { shippingAddress, paymentMethod = "COD", orderNote, couponCode } = req.body;
     const cart = await Cart.findOne({ user: req.user.id }).populate("items.product");
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ success: false, message: "Cart is empty" });
@@ -50,7 +51,19 @@ exports.createOrder = async (req, res) => {
         return res.status(400).json({ success: false, message: `Insufficient stock for ${item.product.name}` });
       }
     }
-    const totalAmount = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+    const subtotal = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+    let discountAmount = 0;
+    let appliedCoupon = null;
+    if (couponCode) {
+      const result = await validateCouponForUser(couponCode, req.user.id, subtotal);
+      if (!result.success) {
+        return res.status(400).json({ success: false, message: result.message });
+      }
+      appliedCoupon = result.coupon;
+      discountAmount = result.discount;
+    }
+    const totalAmount = Math.round((subtotal - discountAmount) * 100) / 100;
 
     if (paymentMethod === "Wallet") {
       const user = await User.findById(req.user.id);
@@ -71,6 +84,10 @@ exports.createOrder = async (req, res) => {
     const order = await Order.create({
       user: req.user.id,
       items: orderItems,
+      subtotal,
+      discountAmount,
+      coupon: appliedCoupon?._id || null,
+      couponCode: appliedCoupon?.code || null,
       totalAmount,
       shippingAddress,
       paymentMethod,
@@ -81,6 +98,10 @@ exports.createOrder = async (req, res) => {
       // dispatch" instead of having to accept every incoming order first.
       status: "Confirmed",
     });
+
+    if (appliedCoupon) {
+      await recordCouponUsage(appliedCoupon, req.user.id, order._id, discountAmount);
+    }
 
     // deduct stock
     for (const item of cart.items) {

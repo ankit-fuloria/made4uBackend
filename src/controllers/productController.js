@@ -92,7 +92,7 @@ exports.getLowStockProducts = async (req, res) => {
 
 exports.createProduct = async (req, res) => {
   try {
-    const images = req.files ? req.files.map((f) => `/uploads/${f.filename}`) : [];
+    const images = req.files ? req.files.map((f) => f.publicUrl) : [];
     // Sellers can only ever create products under their own account.
     const isSeller = req.user.typeOfUser === "Seller";
     const seller = isSeller ? req.user.id : req.body.seller || null;
@@ -117,7 +117,7 @@ exports.updateProduct = async (req, res) => {
       return res.status(403).json({ success: false, message: "You can only edit your own products" });
     }
 
-    const images = req.files && req.files.length ? req.files.map((f) => `/uploads/${f.filename}`) : undefined;
+    const images = req.files && req.files.length ? req.files.map((f) => f.publicUrl) : undefined;
     const updates = { ...req.body, ...(images && { images }) };
     // Sellers can never reassign ownership or self-approve a listing.
     if (req.user.typeOfUser === "Seller") {

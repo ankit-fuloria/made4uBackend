@@ -13,6 +13,14 @@ const orderSchema = new mongoose.Schema(
         seller: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
       },
     ],
+    // Pre-discount sum of item prices. totalAmount (below) is what the
+    // customer actually pays — subtotal minus discountAmount.
+    subtotal: { type: Number, required: true },
+    discountAmount: { type: Number, default: 0 },
+    coupon: { type: mongoose.Schema.Types.ObjectId, ref: "Coupon", default: null },
+    // Snapshot of the code used, so it still reads correctly even if the
+    // Coupon doc is later edited or deactivated.
+    couponCode: { type: String, default: null },
     totalAmount: { type: Number, required: true },
     shippingAddress: {
       street: String,

@@ -13,7 +13,7 @@ exports.createBrand = async (req, res) => {
   try {
     const { name, description } = req.body;
     if (!name) return res.status(400).json({ success: false, message: "Brand name is required" });
-    const logo = req.file ? `/uploads/${req.file.filename}` : undefined;
+    const logo = req.file ? req.file.publicUrl : undefined;
     const brand = await Brand.create({ name, description, ...(logo && { logo }) });
     res.status(201).json({ success: true, brand });
   } catch (err) {

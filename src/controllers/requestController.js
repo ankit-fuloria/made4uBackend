@@ -6,7 +6,7 @@ exports.createRequest = async (req, res) => {
     if (!title || !description) {
       return res.status(400).json({ success: false, message: "Title and description are required" });
     }
-    const images = req.files ? req.files.map((f) => `/uploads/${f.filename}`) : [];
+    const images = req.files ? req.files.map((f) => f.publicUrl) : [];
     const request = await Request.create({
       user: req.user.id,
       title,

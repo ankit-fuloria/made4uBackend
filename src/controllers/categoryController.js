@@ -11,7 +11,7 @@ exports.getCategories = async (req, res) => {
 
 exports.createCategory = async (req, res) => {
   try {
-    const image = req.file ? `/uploads/${req.file.filename}` : undefined;
+    const image = req.file ? req.file.publicUrl : undefined;
     const category = await Category.create({ ...req.body, ...(image && { image }) });
     res.status(201).json({ success: true, category });
   } catch (err) {
