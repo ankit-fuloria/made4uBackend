@@ -28,9 +28,16 @@ const gcsUpload = (subfolder) => async (req, res, next) => {
       req.file.publicUrl = await uploadBufferToGCS(req.file, subfolder);
     }
     if (req.files && req.files.length) {
-      for (const file of req.files) {
-        file.publicUrl = await uploadBufferToGCS(file, subfolder);
-      }
+      // Upload every file concurrently instead of one at a time — with
+      // multiple product images this was previously N sequential round
+      // trips to GCS (write + makePublic each), which added up past the
+      // client's 30s receive timeout. Parallelizing bounds the wall-clock
+      // time to the slowest single upload instead of their sum.
+      await Promise.all(
+        req.files.map(async (file) => {
+          file.publicUrl = await uploadBufferToGCS(file, subfolder);
+        })
+      );
     }
     next();
   } catch (err) {
