@@ -34,9 +34,13 @@ const orderSchema = new mongoose.Schema(
       default: "Pending",
     },
     paymentMethod: { type: String, enum: ["COD", "Wallet", "Online"], default: "COD" },
-    paymentStatus: { type: String, enum: ["Pending", "Paid", "Failed", "Refunded"], default: "Pending" },
+    // "Processing" = customer scanned the UPI QR and tapped Verify, but
+    // there's no payment-gateway integration yet — an admin has to manually
+    // confirm the payment landed before it becomes "Paid".
+    paymentStatus: { type: String, enum: ["Pending", "Processing", "Paid", "Failed", "Refunded"], default: "Pending" },
     orderNote: String,
     shippingCharge: { type: Number, default: 0 },
+    codCharge: { type: Number, default: 0 },
     courierName: String,
     trackingNumber: String,
     rejectReason: String,

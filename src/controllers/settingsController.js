@@ -14,6 +14,7 @@ exports.updateSettings = async (req, res) => {
     const allowed = [
       "appName", "currency", "currencySymbol", "taxRatePercent",
       "commissionRatePercent", "supportEmail", "supportPhone",
+      "freeDeliveryMinOrderValue", "deliveryCharge", "codCharge",
     ];
     const updates = {};
     allowed.forEach((f) => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });

@@ -7,6 +7,7 @@ const {
   cancelOrder,
   getAllOrders,
   updateOrderStatus,
+  verifyPayment,
   getSellerOrders,
   acceptOrder,
   rejectOrder,
@@ -38,5 +39,6 @@ router.patch("/:id/cancel", cancelOrder);
 // per-order action buttons in the UI.
 router.get("/", adminOnly, getAllOrders);
 router.patch("/:id/status", adminOnly, updateOrderStatus);
+router.patch("/:id/verify-payment", adminOnly, verifyPayment);
 
 module.exports = router;
