@@ -117,8 +117,24 @@ exports.updateProduct = async (req, res) => {
       return res.status(403).json({ success: false, message: "You can only edit your own products" });
     }
 
-    const images = req.files && req.files.length ? req.files.map((f) => f.publicUrl) : undefined;
-    const updates = { ...req.body, ...(images && { images }) };
+    // Images are always recomputed explicitly (kept existing + newly
+    // uploaded) rather than only on new uploads — otherwise adding a new
+    // image while keeping old ones would silently drop the old ones, and
+    // there'd be no way to remove a single image without touching the rest.
+    let removedImages = [];
+    if (req.body.removedImages) {
+      try {
+        removedImages = JSON.parse(req.body.removedImages);
+      } catch {
+        removedImages = [];
+      }
+    }
+    const keptImages = (existing.images || []).filter((url) => !removedImages.includes(url));
+    const newImages = req.files && req.files.length ? req.files.map((f) => f.publicUrl) : [];
+    const images = [...keptImages, ...newImages];
+
+    const updates = { ...req.body, images };
+    delete updates.removedImages;
     // Sellers can never reassign ownership or self-approve a listing.
     if (req.user.typeOfUser === "Seller") {
       delete updates.seller;

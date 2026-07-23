@@ -10,7 +10,7 @@ router.get("/", getCategories);
 
 router.use(protect, adminOnly);
 router.post("/", upload.single("image"), gcsUpload("categories"), createCategory);
-router.put("/:id", updateCategory);
+router.put("/:id", upload.single("image"), gcsUpload("categories"), updateCategory);
 router.delete("/:id", deleteCategory);
 
 module.exports = router;

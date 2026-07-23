@@ -10,6 +10,9 @@ const settingsSchema = new mongoose.Schema(
     commissionRatePercent: { type: Number, default: 10 }, // platform cut on seller sales
     supportEmail: { type: String, default: "" },
     supportPhone: { type: String, default: "" },
+    freeDeliveryMinOrderValue: { type: Number, default: 499 },
+    deliveryCharge: { type: Number, default: 79 }, // charged when order subtotal is below freeDeliveryMinOrderValue
+    codCharge: { type: Number, default: 49 }, // extra charge applied only when paymentMethod is COD
   },
   { timestamps: true }
 );

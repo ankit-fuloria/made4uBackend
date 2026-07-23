@@ -5,6 +5,34 @@ const User = require("../models/User");
 const Transaction = require("../models/Transaction");
 const Settings = require("../models/Settings");
 const { validateCouponForUser, recordCouponUsage } = require("../utils/couponValidation");
+const { sendAdminOrderNotification, sendSellerOrderNotification } = require("../utils/email");
+
+// Fires the admin "payment needs verification" email (Online orders only)
+// and a per-seller "new order" email (every order, itemised to just their
+// own products). Called after the response is already sent — a slow or
+// broken SMTP server should never delay order placement — and every email
+// is wrapped in Promise.allSettled so one bad address can't stop the rest.
+const notifyOrderCreated = async (order) => {
+  const tasks = [];
+  if (order.paymentMethod === "Online") {
+    const settings = await Settings.getSingleton();
+    tasks.push(sendAdminOrderNotification(settings.supportEmail, order));
+  }
+  const itemsBySeller = {};
+  for (const item of order.items) {
+    if (!item.seller) continue; // platform-owned item, no seller to notify
+    const key = String(item.seller);
+    (itemsBySeller[key] ||= []).push(item);
+  }
+  const sellerIds = Object.keys(itemsBySeller);
+  if (sellerIds.length) {
+    const sellers = await User.find({ _id: { $in: sellerIds } }, "emailId");
+    for (const seller of sellers) {
+      tasks.push(sendSellerOrderNotification(seller.emailId, order, itemsBySeller[String(seller._id)]));
+    }
+  }
+  await Promise.allSettled(tasks);
+};
 
 // Creates per-seller Sale + Commission transactions the moment an order
 // first becomes "Delivered". Guarded by callers so it only ever runs once
@@ -63,7 +91,10 @@ exports.createOrder = async (req, res) => {
       appliedCoupon = result.coupon;
       discountAmount = result.discount;
     }
-    const totalAmount = Math.round((subtotal - discountAmount) * 100) / 100;
+    const settings = await Settings.getSingleton();
+    const shippingCharge = subtotal >= (settings.freeDeliveryMinOrderValue || 0) ? 0 : (settings.deliveryCharge || 0);
+    const codCharge = paymentMethod === "COD" ? (settings.codCharge || 0) : 0;
+    const totalAmount = Math.round((subtotal - discountAmount + shippingCharge + codCharge) * 100) / 100;
 
     if (paymentMethod === "Wallet") {
       const user = await User.findById(req.user.id);
@@ -89,10 +120,13 @@ exports.createOrder = async (req, res) => {
       coupon: appliedCoupon?._id || null,
       couponCode: appliedCoupon?.code || null,
       totalAmount,
+      shippingCharge,
+      codCharge,
       shippingAddress,
       paymentMethod,
       orderNote,
-      paymentStatus: paymentMethod === "Wallet" ? "Paid" : "Pending",
+      paymentStatus:
+        paymentMethod === "Wallet" ? "Paid" : paymentMethod === "Online" ? "Processing" : "Pending",
       // Orders skip the Pending/accept-reject step for now and start
       // straight at Confirmed — sellers begin their flow at "ready to
       // dispatch" instead of having to accept every incoming order first.
@@ -112,6 +146,8 @@ exports.createOrder = async (req, res) => {
     await Cart.findOneAndUpdate({ user: req.user.id }, { items: [] });
 
     res.status(201).json({ success: true, order });
+
+    notifyOrderCreated(order).catch((err) => console.error("Order notification email failed:", err.message));
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -178,6 +214,23 @@ exports.getAllOrders = async (req, res) => {
       .limit(Number(limit));
     const total = await Order.countDocuments(filter);
     res.json({ success: true, orders, total });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Admin — manually confirms a UPI QR payment (no payment-gateway
+// integration yet, so this is how "Processing" becomes "Paid").
+exports.verifyPayment = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+    if (order.paymentStatus !== "Processing") {
+      return res.status(400).json({ success: false, message: "Only payments under processing can be verified" });
+    }
+    order.paymentStatus = "Paid";
+    await order.save();
+    res.json({ success: true, order });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
