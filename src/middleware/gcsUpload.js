@@ -22,12 +22,16 @@ const uploadBufferToGCS = (file, subfolder) =>
 // req.files. Uploads each buffer to GCS and attaches a public URL as
 // `.publicUrl` on the same file object(s) — controllers read that instead
 // of building a local `/uploads/...` path.
+//
+// req.files is an array when multer's upload.array() is used, but an object
+// keyed by field name (each value an array) when upload.fields() is used —
+// handle both shapes so this middleware works for either.
 const gcsUpload = (subfolder) => async (req, res, next) => {
   try {
     if (req.file) {
       req.file.publicUrl = await uploadBufferToGCS(req.file, subfolder);
     }
-    if (req.files && req.files.length) {
+    if (Array.isArray(req.files) && req.files.length) {
       // Upload every file concurrently instead of one at a time — with
       // multiple product images this was previously N sequential round
       // trips to GCS (write + makePublic each), which added up past the
@@ -35,6 +39,13 @@ const gcsUpload = (subfolder) => async (req, res, next) => {
       // time to the slowest single upload instead of their sum.
       await Promise.all(
         req.files.map(async (file) => {
+          file.publicUrl = await uploadBufferToGCS(file, subfolder);
+        })
+      );
+    } else if (req.files && typeof req.files === "object") {
+      const allFiles = Object.values(req.files).flat();
+      await Promise.all(
+        allFiles.map(async (file) => {
           file.publicUrl = await uploadBufferToGCS(file, subfolder);
         })
       );
