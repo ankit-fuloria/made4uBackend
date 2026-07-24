@@ -180,12 +180,14 @@ exports.getOrderById = async (req, res) => {
 
 exports.cancelOrder = async (req, res) => {
   try {
+    const { reason } = req.body;
     const order = await Order.findOne({ _id: req.params.id, user: req.user.id });
     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
     if (!["Pending", "Confirmed"].includes(order.status)) {
       return res.status(400).json({ success: false, message: "Order cannot be cancelled at this stage" });
     }
     order.status = "Cancelled";
+    order.rejectReason = reason || "Cancelled by customer";
     if (order.paymentStatus === "Paid") {
       await User.findByIdAndUpdate(req.user.id, { $inc: { wallet: order.totalAmount } });
       order.paymentStatus = "Refunded";

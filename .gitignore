@@ -3,3 +3,5 @@ node_modules/
 uploads/
 *.log
 configs/gcloudcred.json
+configs/gcloudcred.json
+configs/gcloudcred.json
